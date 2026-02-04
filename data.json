@@ -1,0 +1,226 @@
+{
+  "materials": [
+    {
+      "id": "sand_02_1",
+      "name": "Песок 0–2 мм, 1 класс",
+      "base_price": 950,
+      "min_tonnage": 1,
+      "base_sell_price": 950,
+      "base_buy_price": 950
+    },
+
+    {
+      "id": "sand_03_1",
+      "name": "Песок 0–3 мм, 1 класс",
+      "base_price": 900,
+      "min_tonnage": 1,
+      "base_sell_price": 900,
+      "base_buy_price": 900
+    },
+    {
+      "id": "sand_04_1",
+      "name": "Песок 0–4 мм, 1 класс",
+      "base_price": 950,
+      "min_tonnage": 1,
+      "base_sell_price": 950,
+      "base_buy_price": 950
+    },
+    {
+      "id": "sand_02_2",
+      "name": "Песок 0–2 мм, 2 класс",
+      "base_price": 950,
+      "min_tonnage": 1,
+      "base_sell_price": 950,
+      "base_buy_price": 950
+    },
+
+    {
+      "id": "sand_03_2",
+      "name": "Песок 0–3 мм, 2 класс",
+      "base_price": 900,
+      "min_tonnage": 1,
+      "base_sell_price": 900,
+      "base_buy_price": 900
+    },
+    {
+      "id": "sand_04_2",
+      "name": "Песок 0–4 мм, 2 класс",
+      "base_price": 950,
+      "min_tonnage": 1,
+      "base_sell_price": 950,
+      "base_buy_price": 950
+    },
+    {
+      "id": "sand_kotl",
+      "name": "Песок котлованный 3 класс",
+      "base_price": 950,
+      "min_tonnage": 1,
+      "base_sell_price": 950,
+      "base_buy_price": 950
+    },
+    {
+      "id": "pgs",
+      "name": "ПГС",
+      "base_price": 850,
+      "min_tonnage": 1,
+      "base_sell_price": 850,
+      "base_buy_price": 850
+    },
+    {
+      "id": "pgs_obg",
+      "name": "ПГС обогощенный",
+      "base_price": 850,
+      "min_tonnage": 1,
+      "base_sell_price": 850,
+      "base_buy_price": 850
+    },
+    {
+      "id": "graviy 3_20",
+      "name": "Гравий 3-20",
+      "base_price": 850,
+      "min_tonnage": 1,
+      "base_sell_price": 850,
+      "base_buy_price": 850
+    },
+    {
+      "id": "graviy 20_40",
+      "name": "Гравий 20-40",
+      "base_price": 850,
+      "min_tonnage": 1,
+      "base_sell_price": 850,
+      "base_buy_price": 850
+    },
+    {
+      "id": "crush_grav_5_20",
+      "name": "Щебень гравийный 5–20",
+      "base_price": 1200,
+      "min_tonnage": 5,
+      "base_sell_price": 1200,
+      "base_buy_price": 1200
+    },
+    {
+      "id": "crush_grav_20_400",
+      "name": "Щебень гравийный 20–40",
+      "base_price": 1200,
+      "min_tonnage": 1,
+      "base_sell_price": 1200,
+      "base_buy_price": 1200
+    },
+    {
+      "id": "crush_gran_5_20",
+      "name": "Щебень гранитный 5–20",
+      "base_price": 1800,
+      "min_tonnage": 1,
+      "base_sell_price": 1800,
+      "base_buy_price": 1800
+    },
+    {
+      "id": "grunt rast",
+      "name": "Грунт растительный",
+      "base_price": 1800,
+      "min_tonnage": 1,
+      "base_sell_price": 1800,
+      "base_buy_price": 1800
+    },
+    {
+      "id": "grunt plan",
+      "name": "Грунт планировочный",
+      "base_price": 1800,
+      "min_tonnage": 1,
+      "base_sell_price": 1800,
+      "base_buy_price": 1800
+    },
+    {
+      "id": "chern",
+      "name": "Чернозем",
+      "base_price": 1200,
+      "min_tonnage": 1,
+      "base_sell_price": 1200,
+      "base_buy_price": 1200
+    },
+    {
+      "id": "betonboy",
+      "name": "Бой бетона",
+      "base_price": 1200,
+      "min_tonnage": 1,
+      "base_sell_price": 1200,
+      "base_buy_price": 1200
+    },
+    {
+      "id": "asfalt",
+      "name": "Асфальт дробленый",
+      "base_price": 1200,
+      "min_tonnage": 1,
+      "base_sell_price": 1200,
+      "base_buy_price": 1200
+    }
+  ],
+  "careers": [
+    {
+      "id": "career_a",
+      "name": "Новопрегольский",
+      "address": "Калининград",
+      "priority": 1,
+      "active": true,
+      "materials": [
+        "sand_02_1",
+        "sand_03_1",
+        "pgs_nat"
+      ],
+      "buy_prices": {}
+    },
+    {
+      "id": "career_b",
+      "name": "База",
+      "address": "Калининградская обл., Энергетиков 7Б",
+      "priority": 2,
+      "active": true,
+      "materials": [
+        "crush_grav_5_20"
+      ],
+      "buy_prices": {}
+    },
+    {
+      "id": "transfer_c",
+      "name": "База ",
+      "address": "Калининград, Энергетиков 7Б",
+      "priority": 1,
+      "active": true,
+      "materials": [
+        "crush_grav_5_20",
+        "crush_gran_5_20",
+        "sand_02_1"
+      ],
+      "buy_prices": {}
+    }
+  ],
+  "trucks": [
+    {
+      "id": "truck_1",
+      "name": "Самосвал 502",
+      "min_tonnage": 5,
+      "max_tonnage": 10,
+      "price_per_km": 85,
+      "active": true,
+      "current_location": {
+        "label": "Стоянка/последняя точка (вручную)"
+      }
+    },
+    {
+      "id": "truck_2",
+      "name": "Сцепка 812 ",
+      "min_tonnage": 20,
+      "max_tonnage": 30,
+      "price_per_km": 120,
+      "active": true,
+      "current_location": {
+        "label": "Стоянка/последняя точка (вручную)"
+      }
+    }
+  ],
+  "pricing_defaults": {
+    "markup_pct": 10,
+    "markup_rub_per_t": 0,
+    "use_markup": true
+  }
+}

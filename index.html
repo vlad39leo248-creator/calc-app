@@ -1,0 +1,791 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Калькулятор доставки (карта + админка)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:18px;max-width:1200px}
+    h1{margin:0 0 6px}
+    .muted{color:#666;font-size:13px}
+    .row{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+    .card{border:1px solid #ddd;border-radius:12px;padding:14px;flex:1;min-width:340px}
+    label{display:block;font-size:13px;margin:10px 0 4px;color:#333}
+    input,select,textarea{width:100%;padding:10px;border:1px solid #ccc;border-radius:10px;font-size:14px;box-sizing:border-box}
+    .inline{display:flex;gap:10px}
+    .inline>*{flex:1}
+    .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+    button{padding:10px 12px;border:1px solid #333;border-radius:10px;background:#111;color:#fff;cursor:pointer}
+    button.secondary{background:#fff;color:#111;border-color:#999}
+    button.danger{background:#b00020;border-color:#7a0014}
+    .warn{background:#fff7e6;border:1px solid #ffd27a;padding:10px;border-radius:10px;margin-top:10px}
+    .ok{background:#eefbf1;border:1px solid #9be2ae;padding:10px;border-radius:10px;margin-top:10px}
+    #map{width:100%;height:420px;border-radius:12px;border:1px solid #eee;margin-top:10px}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    td,th{border-bottom:1px solid #eee;padding:8px 6px;text-align:left;font-size:13px;vertical-align:top}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}
+    .tab{padding:8px 10px;border:1px solid #ccc;border-radius:999px;background:#fff;color:#111;cursor:pointer;font-size:13px}
+    .tab.active{border-color:#111;background:#111;color:#fff}
+    .admin{margin-top:14px;border-top:1px dashed #ddd;padding-top:14px}
+    .hidden{display:none}
+    .small{font-size:12px;color:#666}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .w120{width:120px}
+    .w140{width:140px}
+    .w200{width:200px}
+    .nowrap{white-space:nowrap}
+    .chkrow{display:flex;gap:10px;flex-wrap:wrap}
+    .chip{display:inline-flex;gap:6px;align-items:center;border:1px solid #ddd;border-radius:999px;padding:6px 10px;font-size:12px}
+    .chip input[type="checkbox"]{width:auto}
+    .chip input[type="number"]{width:110px;padding:6px 8px;border-radius:10px}
+    .hr{height:1px;background:#eee;margin:12px 0}
+  </style>
+</head>
+<body>
+  <h1>Калькулятор доставки — карта + админка</h1>
+  <div class="muted">Админка: материалы / карьеры / машины → сохраняется в браузере → экспорт в data.json.</div>
+
+  <div class="row">
+    <div class="card">
+      <h3 style="margin:0 0 6px">Расчёт</h3>
+
+      <label>Материал</label>
+      <select id="material"></select>
+
+      <div class="inline">
+        <div>
+          <label>Закупка (₽/т) — из карьера</label>
+          <input id="buyPrice" type="number" min="0" step="1"/>
+        </div>
+        <div>
+          <label>Цена клиенту (₽/т)</label>
+          <input id="sellPrice" type="number" min="0" step="1"/>
+        </div>
+      </div>
+
+      <div class="inline">
+        <div>
+          <label>Наценка (₽/т)</label>
+          <input id="markupRub" type="number" step="1" value="0"/>
+        </div>
+        <div>
+          <label>Наценка (%)</label>
+          <input id="markupPct" type="number" step="0.1" value="0"/>
+        </div>
+      </div>
+
+      <label><input id="applyMarkup" type="checkbox" checked/> Применять наценку (выкл → цена = закупка)</label>
+
+      <div class="inline">
+        <div>
+          <label>Тоннаж (т)</label>
+          <input id="tonnage" type="number" min="0" step="0.1" value="5"/>
+        </div>
+        <div>
+          <label>Машина</label>
+          <select id="truck"></select>
+        </div>
+      </div>
+
+      <label>Адрес машины (текущее положение)</label>
+      <input id="truckAddress" placeholder="Калининград, ..." />
+
+      <label>Адрес клиента</label>
+      <input id="clientAddress" placeholder="Калининград, ..." />
+
+      <label>Режим выбора карьера</label>
+      <select id="careerMode">
+        <option value="auto_min_km">Авто — минимальные км</option>
+        <option value="auto_priority">Авто — приоритет (priority), затем км</option>
+        <option value="manual">Ручной выбор</option>
+      </select>
+
+      <label>Карьеры (ручной выбор)</label>
+      <select id="careerManual"></select>
+
+      <label><input id="includeReturn" type="checkbox"/> Считать обратный путь (клиент → карьер)</label>
+
+      <div class="inline">
+        <div>
+          <label>Корректировка, ₽</label>
+          <input id="adjRub" type="number" step="1" value="0"/>
+        </div>
+        <div>
+          <label>Корректировка, %</label>
+          <input id="adjPct" type="number" step="0.1" value="0"/>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="calcBtn">Рассчитать (автокм)</button>
+        <button class="secondary" id="copyBtn">Скопировать</button>
+        <button class="secondary" id="toggleAdminBtn">Админка данных</button>
+      </div>
+
+      <div id="msg"></div>
+      <div id="result"></div>
+
+      <div id="admin" class="admin hidden">
+        <h3 style="margin:0">Админка</h3>
+        <div class="small">
+          Изменения сохраняются в браузере (localStorage). Чтобы применить в проекте — нажми “Скачать data.json” и замени файл в папке проекта.
+        </div>
+
+        <div class="tabs">
+          <button class="tab active" data-tab="tab_materials">Материалы</button>
+          <button class="tab" data-tab="tab_careers">Карьеры</button>
+          <button class="tab" data-tab="tab_trucks">Машины</button>
+
+          <span style="flex:1"></span>
+
+          <label class="chip" title="Импорт JSON">
+            <input id="importJson" type="file" accept="application/json"/>
+            Импорт JSON
+          </label>
+          <button class="secondary" id="exportJsonBtn">Скачать data.json</button>
+          <button class="danger" id="resetLocalBtn" title="Удалить данные из браузера и вернуться к data.json">Сброс localStorage</button>
+        </div>
+
+        <div id="tab_materials">
+          <div class="btns">
+            <button class="secondary" id="addMaterialBtn">+ Материал</button>
+          </div>
+          <div id="materialsTable"></div>
+        </div>
+
+        <div id="tab_careers" class="hidden">
+          <div class="btns">
+            <button class="secondary" id="addCareerBtn">+ Карьер</button>
+          </div>
+          <div id="careersTable"></div>
+        </div>
+
+        <div id="tab_trucks" class="hidden">
+          <div class="btns">
+            <button class="secondary" id="addTruckBtn">+ Машина</button>
+          </div>
+          <div id="trucksTable"></div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="small">
+          Адреса карьеров можно менять тут. Пиши максимально точно (область/посёлок/ориентир).
+          Закупочные цены — это цена без доставки (₽/т).
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin:0">Карта</h3>
+      <div id="map"></div>
+      <div class="muted" style="margin-top:8px">Карьеры + машина + клиент + маршрут.</div>
+    </div>
+  </div>
+
+<script>
+  // ВСТАВЬ СЮДА СВОЙ КЛЮЧ ЯНДЕКС.КАРТ:
+  const YMAPS_KEY = "1235b579-ed15-456f-9c41-5c59965d9d3d";
+
+  const LS_KEY = "calc_app_data_admin_v1";
+  const $ = (id) => document.getElementById(id);
+
+  let DATA = null;
+  let map = null;
+
+  function money(n){
+    const x = Math.round((Number(n) || 0));
+    return x.toLocaleString('ru-RU') + " ₽";
+  }
+
+  function loadYmaps(){
+    return new Promise((resolve, reject) => {
+      if(!YMAPS_KEY || YMAPS_KEY.includes("70c9a7d4-90c0-479d-8da1-f486c79de0c8")){
+        reject(new Error("Не вставлен YMAPS_KEY"));
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = `https://api-maps.yandex.ru/2.1/?apikey=${encodeURIComponent(YMAPS_KEY)}&lang=ru_RU`;
+      s.onload = () => ymaps.ready(() => resolve());
+      s.onerror = () => reject(new Error("Не загрузились Яндекс.Карты"));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function fetchDataFromFile(){
+    const resp = await fetch("./data.json", { cache: "no-store" });
+    return await resp.json();
+  }
+
+  function loadDataFromLocal(){
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return null;
+    try { return JSON.parse(raw); } catch { return null; }
+  }
+
+  function saveDataToLocal(){
+    localStorage.setItem(LS_KEY, JSON.stringify(DATA, null, 2));
+  }
+
+  function resetLocal(){
+    localStorage.removeItem(LS_KEY);
+  }
+
+  function findMaterial(id){ return (DATA.materials||[]).find(m=>m.id===id); }
+  function findTruck(id){ return (DATA.trucks||[]).find(t=>t.id===id); }
+  function findCareer(id){ return (DATA.careers||[]).find(c=>c.id===id); }
+
+  function eligibleCareersForMaterial(materialId){
+    return (DATA.careers||[]).filter(c => c.active && (c.materials||[]).includes(materialId));
+  }
+
+  function refreshCareerManual(){
+    const materialId = $("material").value;
+    const list = eligibleCareersForMaterial(materialId);
+    $("careerManual").innerHTML = list.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  }
+
+  function getBuyPrice(materialId, careerId){
+    const c = findCareer(careerId);
+    if(c && c.buy_prices && typeof c.buy_prices[materialId] === "number") return c.buy_prices[materialId];
+    const m = findMaterial(materialId);
+    if(m && typeof m.base_buy_price === "number") return m.base_buy_price;
+    return 0;
+  }
+
+  function recalcSellPrice(){
+    const buy = Number($("buyPrice").value || 0);
+    if(!$("applyMarkup").checked){
+      $("sellPrice").value = Math.round(buy);
+      return;
+    }
+    const mr = Number($("markupRub").value || 0);
+    const mp = Number($("markupPct").value || 0);
+    const sell = buy + mr + (buy * mp/100);
+    $("sellPrice").value = Math.max(0, Math.round(sell));
+  }
+
+  async function geocode(address){
+    const res = await ymaps.geocode(address);
+    const first = res.geoObjects.get(0);
+    if(!first) return null;
+    return first.geometry.getCoordinates();
+  }
+
+  function ensureMap(center){
+    if(map) return;
+    map = new ymaps.Map("map", {
+      center: center || [54.7104, 20.4522],
+      zoom: 10,
+      controls: ["zoomControl"]
+    });
+  }
+
+  function clearMap(){
+    if(!map) return;
+    map.geoObjects.removeAll();
+  }
+
+  function addPlacemark(coords, hint, preset){
+    const pm = new ymaps.Placemark(coords, { hintContent: hint }, { preset: preset || "islands#blueDotIcon" });
+    map.geoObjects.add(pm);
+    return pm;
+  }
+
+  async function addCareersOnMap(){
+    const careers = (DATA.careers||[]).filter(c=>c.active);
+    for(const c of careers){
+      let coords = null;
+      if(typeof c.lat === "number" && typeof c.lng === "number") coords = [c.lat, c.lng];
+      else if(c.address) coords = await geocode(c.address);
+      if(coords) addPlacemark(coords, c.name, "islands#grayDotIcon");
+    }
+  }
+
+  function computeDistanceKm(fromCoords, toCoords){
+    return new Promise((resolve, reject) => {
+      const router = new ymaps.multiRouter.MultiRoute({
+        referencePoints: [fromCoords, toCoords],
+        params: { routingMode: "auto" }
+      }, { boundsAutoApply: false });
+
+      router.model.events.add("requestsuccess", function () {
+        const routes = router.getRoutes();
+        if(!routes || routes.getLength() === 0) { resolve(null); return; }
+        const activeRoute = routes.get(0);
+        const dist = activeRoute.properties.get("distance");
+        const km = dist ? dist.value / 1000 : null;
+        resolve(km);
+      });
+
+      router.model.events.add("requestfail", function () {
+        reject(new Error("Не удалось построить маршрут"));
+      });
+    });
+  }
+
+  async function pickCareerAuto(materialId, mode, truckCoords, clientCoords){
+    const list = eligibleCareersForMaterial(materialId);
+    if(!list.length) return { career: null, reason: "Нет активного карьера/перевалки с этим материалом." };
+
+    if(mode === "manual"){
+      const id = $("careerManual").value;
+      const found = list.find(x => x.id === id);
+      return { career: found || list[0], reason: null };
+    }
+
+    let candidates = [...list];
+    if(mode === "auto_priority"){
+      candidates.sort((a,b) => (a.priority ?? 999) - (b.priority ?? 999));
+      candidates = candidates.slice(0, Math.min(3, candidates.length));
+    }
+
+    let best = null;
+    for(const c of candidates){
+      const careerCoords = (typeof c.lat === "number" && typeof c.lng === "number") ? [c.lat, c.lng] : await geocode(c.address);
+      if(!careerCoords) continue;
+
+      const km1 = await computeDistanceKm(truckCoords, careerCoords);
+      const km2 = await computeDistanceKm(careerCoords, clientCoords);
+      if(km1 == null || km2 == null) continue;
+
+      const total = km1 + km2;
+      if(!best || total < best.totalKm){
+        best = { career: c, careerCoords, kmTruckCareer: km1, kmCareerClient: km2, totalKm: total };
+      }
+    }
+
+    if(!best) return { career: list[0], reason: "Не удалось посчитать км, выбран первый карьер." };
+    return best;
+  }
+
+  async function calc(){
+    const msgEl = $("msg");
+    const resEl = $("result");
+    msgEl.innerHTML = "";
+    resEl.innerHTML = "";
+
+    const materialId = $("material").value;
+    const truckId = $("truck").value;
+    const tonnage = Number($("tonnage").value || 0);
+
+    const material = findMaterial(materialId);
+    const truck = findTruck(truckId);
+
+    const truckAddress = $("truckAddress").value.trim();
+    const clientAddress = $("clientAddress").value.trim();
+
+    if(!material || !truck){
+      msgEl.innerHTML = `<div class="warn">Выбери материал и машину.</div>`;
+      return;
+    }
+    if(!truckAddress || !clientAddress){
+      msgEl.innerHTML = `<div class="warn">Введи адрес машины и адрес клиента.</div>`;
+      return;
+    }
+    if(tonnage < truck.min_tonnage || tonnage > truck.max_tonnage){
+      msgEl.innerHTML = `<div class="warn">Тоннаж ${tonnage} т не подходит для машины (${truck.min_tonnage}–${truck.max_tonnage} т).</div>`;
+      return;
+    }
+
+    const truckCoords = await geocode(truckAddress);
+    const clientCoords = await geocode(clientAddress);
+    if(!truckCoords || !clientCoords){
+      msgEl.innerHTML = `<div class="warn">Не удалось распознать адрес машины или клиента.</div>`;
+      return;
+    }
+
+    ensureMap(clientCoords);
+    clearMap();
+    await addCareersOnMap();
+
+    addPlacemark(truckCoords, "Машина", "islands#blueDotIcon");
+    addPlacemark(clientCoords, "Клиент", "islands#redDotIcon");
+
+    const includeReturn = $("includeReturn").checked;
+    const careerMode = $("careerMode").value;
+
+    const chosen = await pickCareerAuto(materialId, careerMode, truckCoords, clientCoords);
+    const career = chosen.career;
+    if(!career){
+      msgEl.innerHTML = `<div class="warn">${chosen.reason || "Нет карьера"}</div>`;
+      return;
+    }
+
+    $("buyPrice").value = Math.round(getBuyPrice(materialId, career.id));
+    if(Number($("markupRub").value||0)===0 && Number($("markupPct").value||0)===0){
+      $("markupPct").value = Number(material.default_markup_pct || 0);
+    }
+    recalcSellPrice();
+
+    const careerCoords = chosen.careerCoords || (await geocode(career.address));
+    addPlacemark(careerCoords, "Карьер: " + career.name, "islands#greenDotIcon");
+
+    const kmTruckCareer = chosen.kmTruckCareer ?? await computeDistanceKm(truckCoords, careerCoords);
+    const kmCareerClient = chosen.kmCareerClient ?? await computeDistanceKm(careerCoords, clientCoords);
+
+    let kmTotal = kmTruckCareer + kmCareerClient;
+    if(includeReturn) kmTotal += kmCareerClient;
+
+    const points = includeReturn ? [truckCoords, careerCoords, clientCoords, careerCoords] : [truckCoords, careerCoords, clientCoords];
+    const routeLine = new ymaps.multiRouter.MultiRoute({
+      referencePoints: points,
+      params: { routingMode: "auto" }
+    }, { boundsAutoApply: true });
+    map.geoObjects.add(routeLine);
+
+    const buyPrice = Number($("buyPrice").value || 0);
+    const sellPrice = Number($("sellPrice").value || 0);
+
+    const materialCostBuy = buyPrice * tonnage;
+    const materialRevenue = sellPrice * tonnage;
+    const materialMargin = materialRevenue - materialCostBuy;
+
+    const deliveryCost = kmTotal * (Number(truck.price_per_km) || 0);
+
+    const adjRub = Number($("adjRub").value || 0);
+    const adjPct = Number($("adjPct").value || 0);
+
+    const subtotal = materialRevenue + deliveryCost;
+    const adjFromPct = subtotal * (adjPct / 100);
+    const total = subtotal + adjRub + adjFromPct;
+
+    resEl.innerHTML = `
+      <h3 style="margin-top:14px">Детализация</h3>
+      <table>
+        <tr><th>Параметр</th><th>Значение</th></tr>
+        <tr><td>Материал</td><td>${material.name}</td></tr>
+        <tr><td>Карьер</td><td>${career.name}</td></tr>
+        <tr><td>Тоннаж</td><td>${tonnage} т</td></tr>
+        <tr><td>Закупка (₽/т)</td><td>${money(buyPrice)}</td></tr>
+        <tr><td>Цена клиенту (₽/т)</td><td>${money(sellPrice)}</td></tr>
+        <tr><td>Маржа по материалу</td><td>${money(materialMargin)}</td></tr>
+        <tr><td>Машина</td><td>${truck.name}</td></tr>
+        <tr><td>₽/км</td><td>${money(truck.price_per_km)}</td></tr>
+        <tr><td>Км: машина → карьер</td><td>${kmTruckCareer.toFixed(1)}</td></tr>
+        <tr><td>Км: карьер → клиент</td><td>${kmCareerClient.toFixed(1)}</td></tr>
+        <tr><td>Обратный путь</td><td>${includeReturn ? "Да" : "Нет"}</td></tr>
+        <tr><td><b>Км итого</b></td><td><b>${kmTotal.toFixed(1)}</b></td></tr>
+        <tr><td>Стоимость доставки</td><td>${money(deliveryCost)}</td></tr>
+        <tr><td>Корректировка ₽</td><td>${money(adjRub)}</td></tr>
+        <tr><td>Корректировка %</td><td>${adjPct}% (${money(adjFromPct)})</td></tr>
+        <tr><td><b>ИТОГО для клиента</b></td><td><b>${money(total)}</b></td></tr>
+      </table>
+    `;
+    msgEl.innerHTML = `<div class="ok">Готово. Карьер выбран: <b>${career.name}</b>.</div>`;
+    if(chosen.reason) msgEl.innerHTML += `<div class="warn">${chosen.reason}</div>`;
+  }
+
+  function renderMaterials(){
+    const div = $("materialsTable");
+    const rows = (DATA.materials||[]).map((m, idx) => `
+      <tr>
+        <td class="nowrap">${idx+1}</td>
+        <td><input value="${m.id||""}" data-k="id" data-t="materials" data-i="${idx}" class="w200"/></td>
+        <td><input value="${m.name||""}" data-k="name" data-t="materials" data-i="${idx}"/></td>
+        <td><input type="number" value="${m.min_tonnage??0}" data-k="min_tonnage" data-t="materials" data-i="${idx}" class="w120"/></td>
+        <td><input type="number" value="${m.market_price??0}" data-k="market_price" data-t="materials" data-i="${idx}" class="w140"/></td>
+        <td><input type="number" value="${m.base_buy_price??0}" data-k="base_buy_price" data-t="materials" data-i="${idx}" class="w140"/></td>
+        <td><input type="number" value="${m.default_markup_pct??0}" data-k="default_markup_pct" data-t="materials" data-i="${idx}" class="w120"/></td>
+        <td><button class="danger" data-del="materials" data-i="${idx}">Удалить</button></td>
+      </tr>
+    `).join("");
+
+    div.innerHTML = `
+      <table>
+        <tr>
+          <th>#</th><th>ID</th><th>Название</th><th>min т</th><th>Рынок (₽/т)</th><th>База закупки (₽/т)</th><th>Наценка %</th><th></th>
+        </tr>
+        ${rows}
+      </table>
+      <div class="small">ID: латиница/цифры/подчёркивание (пример: sand_02_1). Если ID уже используется в карьерах — не меняй.</div>
+    `;
+  }
+
+  function renderCareers(){
+    const div = $("careersTable");
+    const mats = (DATA.materials||[]);
+    const careers = (DATA.careers||[]);
+
+    div.innerHTML = careers.map((c, idx) => {
+      const chips = mats.map(m => {
+        const checked = (c.materials||[]).includes(m.id) ? "checked" : "";
+        const bp = c.buy_prices && typeof c.buy_prices[m.id] === "number" ? c.buy_prices[m.id] : "";
+        return `
+          <span class="chip">
+            <input type="checkbox" data-career-mat="${c.id}" data-matid="${m.id}" ${checked}/>
+            <span>${m.name}</span>
+            <input type="number" placeholder="закуп ₽/т" value="${bp}"
+              data-career-price="${c.id}" data-matid="${m.id}"/>
+          </span>
+        `;
+      }).join("");
+
+      return `
+        <div style="border:1px solid #eee;border-radius:12px;padding:12px;margin-top:10px">
+          <div class="grid">
+            <div><label>ID</label><input value="${c.id||""}" data-k="id" data-t="careers" data-i="${idx}"/></div>
+            <div><label>Название</label><input value="${c.name||""}" data-k="name" data-t="careers" data-i="${idx}"/></div>
+            <div><label>Адрес</label><input value="${c.address||""}" data-k="address" data-t="careers" data-i="${idx}"/></div>
+            <div class="inline">
+              <div><label>priority</label><input type="number" value="${c.priority??999}" data-k="priority" data-t="careers" data-i="${idx}"/></div>
+              <div><label>active</label>
+                <select data-k="active" data-t="careers" data-i="${idx}">
+                  <option value="true" ${c.active? "selected":""}>true</option>
+                  <option value="false" ${!c.active? "selected":""}>false</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <label>Материалы + закупочные цены (₽/т)</label>
+          <div class="chkrow">${chips}</div>
+          <div class="btns">
+            <button class="danger" data-del="careers" data-i="${idx}">Удалить карьер</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderTrucks(){
+    const div = $("trucksTable");
+    const rows = (DATA.trucks||[]).map((t, idx) => `
+      <tr>
+        <td class="nowrap">${idx+1}</td>
+        <td><input value="${t.id||""}" data-k="id" data-t="trucks" data-i="${idx}" class="w200"/></td>
+        <td><input value="${t.name||""}" data-k="name" data-t="trucks" data-i="${idx}"/></td>
+        <td><input type="number" value="${t.min_tonnage??0}" data-k="min_tonnage" data-t="trucks" data-i="${idx}" class="w120"/></td>
+        <td><input type="number" value="${t.max_tonnage??0}" data-k="max_tonnage" data-t="trucks" data-i="${idx}" class="w120"/></td>
+        <td><input type="number" value="${t.price_per_km??0}" data-k="price_per_km" data-t="trucks" data-i="${idx}" class="w140"/></td>
+        <td>
+          <select data-k="active" data-t="trucks" data-i="${idx}">
+            <option value="true" ${t.active? "selected":""}>true</option>
+            <option value="false" ${!t.active? "selected":""}>false</option>
+          </select>
+        </td>
+        <td><button class="danger" data-del="trucks" data-i="${idx}">Удалить</button></td>
+      </tr>
+    `).join("");
+
+    div.innerHTML = `
+      <table>
+        <tr><th>#</th><th>ID</th><th>Название</th><th>min т</th><th>max т</th><th>₽/км</th><th>active</th><th></th></tr>
+        ${rows}
+      </table>
+    `;
+  }
+
+  function renderAdmin(){
+    renderMaterials();
+    renderCareers();
+    renderTrucks();
+  }
+
+  function refreshAllUi(rebuildAdmin=true){
+    $("material").innerHTML = (DATA.materials||[]).map(m => `<option value="${m.id}">${m.name}</option>`).join("");
+    $("truck").innerHTML = (DATA.trucks||[]).filter(t=>t.active).map(t => `<option value="${t.id}">${t.name} (${t.min_tonnage}-${t.max_tonnage} т)</option>`).join("");
+
+    refreshCareerManual();
+
+    const materialId = $("material").value;
+    const m = findMaterial(materialId);
+    if(m){
+      if(Number($("markupRub").value||0)===0 && Number($("markupPct").value||0)===0){
+        $("markupPct").value = Number(m.default_markup_pct||0);
+      }
+    }
+    const cands = eligibleCareersForMaterial(materialId);
+    const cid = (cands[0] && cands[0].id) || $("careerManual").value;
+    $("buyPrice").value = Math.round(getBuyPrice(materialId, cid));
+    recalcSellPrice();
+
+    if(rebuildAdmin) renderAdmin();
+  }
+
+  function wireAdminEvents(){
+    document.querySelectorAll(".tab").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        document.querySelectorAll(".tab").forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        const id = btn.dataset.tab;
+        ["tab_materials","tab_careers","tab_trucks"].forEach(t=>{
+          $(t).classList.toggle("hidden", t !== id);
+        });
+      });
+    });
+
+    $("addMaterialBtn").addEventListener("click", ()=>{
+      (DATA.materials ||= []).push({ id:"new_material", name:"Новый материал", min_tonnage:1, market_price:0, base_buy_price:0, default_markup_pct:0 });
+      saveDataToLocal(); renderAdmin(); refreshAllUi(false);
+    });
+    $("addCareerBtn").addEventListener("click", ()=>{
+      (DATA.careers ||= []).push({ id:"new_career", name:"Новый карьер", address:"Калининградская область, ...", priority:999, active:true, materials:[], buy_prices:{} });
+      saveDataToLocal(); renderAdmin(); refreshAllUi(false);
+    });
+    $("addTruckBtn").addEventListener("click", ()=>{
+      (DATA.trucks ||= []).push({ id:"new_truck", name:"Новая машина", min_tonnage:1, max_tonnage:5, price_per_km:0, active:true });
+      saveDataToLocal(); renderAdmin(); refreshAllUi(false);
+    });
+
+    $("exportJsonBtn").addEventListener("click", ()=>{
+      const blob = new Blob([JSON.stringify(DATA, null, 2)], { type:"application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "data.json";
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    $("importJson").addEventListener("change", async (e)=>{
+      const file = e.target.files && e.target.files[0];
+      if(!file) return;
+      const txt = await file.text();
+      try{
+        DATA = JSON.parse(txt);
+        saveDataToLocal();
+        renderAdmin();
+        refreshAllUi(false);
+        $("msg").innerHTML = `<div class="ok">JSON импортирован. Данные сохранены в браузере.</div>`;
+      }catch(err){
+        $("msg").innerHTML = `<div class="warn">Не удалось импортировать JSON: ${err.message}</div>`;
+      }
+      e.target.value = "";
+    });
+
+    $("resetLocalBtn").addEventListener("click", ()=>{
+      resetLocal();
+      location.reload();
+    });
+
+    document.addEventListener("input", (e)=>{
+      const el = e.target;
+
+      if(el.dataset && el.dataset.t){
+        const t = el.dataset.t;
+        const i = Number(el.dataset.i);
+        const k = el.dataset.k;
+
+        let v = el.value;
+        if(["min_tonnage","max_tonnage","price_per_km","market_price","base_buy_price","default_markup_pct","priority"].includes(k)){
+          v = Number(v||0);
+        }
+        if(k === "active"){
+          v = (v === "true");
+        }
+        DATA[t][i][k] = v;
+        saveDataToLocal();
+        refreshAllUi(false);
+      }
+
+      if(el.dataset && el.dataset.careerMat){
+        const careerId = el.dataset.careerMat;
+        const matId = el.dataset.matid;
+        const c = findCareer(careerId);
+        c.materials ||= [];
+        if(el.checked){
+          if(!c.materials.includes(matId)) c.materials.push(matId);
+        } else {
+          c.materials = c.materials.filter(x=>x!==matId);
+          if(c.buy_prices) delete c.buy_prices[matId];
+        }
+        saveDataToLocal();
+        refreshAllUi(false);
+      }
+
+      if(el.dataset && el.dataset.careerPrice){
+        const careerId = el.dataset.careerPrice;
+        const matId = el.dataset.matid;
+        const c = findCareer(careerId);
+        c.buy_prices ||= {};
+        const num = el.value === "" ? null : Number(el.value||0);
+        if(num === null){
+          delete c.buy_prices[matId];
+        } else {
+          c.buy_prices[matId] = num;
+          c.materials ||= [];
+          if(!c.materials.includes(matId)) c.materials.push(matId);
+        }
+        saveDataToLocal();
+        refreshAllUi(false);
+      }
+    });
+
+    document.addEventListener("click", (e)=>{
+      const el = e.target;
+      if(el.dataset && el.dataset.del){
+        const t = el.dataset.del;
+        const i = Number(el.dataset.i);
+        DATA[t].splice(i,1);
+        saveDataToLocal();
+        renderAdmin();
+        refreshAllUi(false);
+      }
+    });
+  }
+
+  async function init(){
+    const local = loadDataFromLocal();
+    DATA = local || await fetchDataFromFile();
+
+    DATA.materials ||= [];
+    DATA.careers ||= [];
+    DATA.trucks ||= [];
+
+    refreshAllUi(true);
+    wireAdminEvents();
+
+    $("material").addEventListener("change", ()=>{
+      refreshCareerManual();
+      const materialId = $("material").value;
+      const cands = eligibleCareersForMaterial(materialId);
+      const cid = (cands[0] && cands[0].id) || $("careerManual").value;
+      $("buyPrice").value = Math.round(getBuyPrice(materialId, cid));
+      const m = findMaterial(materialId);
+      if(Number($("markupRub").value||0)===0 && Number($("markupPct").value||0)===0){
+        $("markupPct").value = Number(m.default_markup_pct||0);
+      }
+      recalcSellPrice();
+    });
+
+    $("careerManual").addEventListener("change", ()=>{
+      $("buyPrice").value = Math.round(getBuyPrice($("material").value, $("careerManual").value));
+      recalcSellPrice();
+    });
+
+    ["buyPrice","markupRub","markupPct","applyMarkup"].forEach(id=>{
+      $(id).addEventListener("input", recalcSellPrice);
+      $(id).addEventListener("change", recalcSellPrice);
+    });
+
+    $("calcBtn").addEventListener("click", ()=>calc().catch(err=>{
+      console.error(err);
+      $("msg").innerHTML = `<div class="warn">Ошибка: ${err.message}</div>`;
+    }));
+
+    $("copyBtn").addEventListener("click", async ()=>{
+      const text = $("result").innerText.trim();
+      if(!text){ $("msg").innerHTML = `<div class="warn">Сначала “Рассчитать”.</div>`; return; }
+      await navigator.clipboard.writeText(text);
+      $("msg").innerHTML = `<div class="ok">Скопировано.</div>`;
+    });
+
+    $("toggleAdminBtn").addEventListener("click", ()=>{
+      $("admin").classList.toggle("hidden");
+      if(!$("admin").classList.contains("hidden")) renderAdmin();
+    });
+  }
+
+  (async ()=>{
+    try{
+      await loadYmaps();
+      await init();
+      ensureMap();
+      await addCareersOnMap();
+    }catch(e){
+      console.error(e);
+      $("msg").innerHTML = `<div class="warn">Карта не загрузилась: ${e.message}<br/>Проверь ключ/ограничения referrer.</div>`;
+      await init(); // админка работает и без карты
+    }
+  })();
+</script>
+</body>
+</html>
